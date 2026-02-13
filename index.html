@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Valentýnka</title>
+  <style>
+    :root{
+      --yes:#29c35a; --no:#e64b4b; --shadow:0 10px 30px rgba(0,0,0,.12);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100dvh; display:grid; place-items:center; padding:24px;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:linear-gradient(180deg,#fff 0%,#fafafa 100%); color:#111;
+    }
+    .wrap{
+      width:min(720px,100%); background:#fff; border-radius:18px; box-shadow:var(--shadow);
+      padding:28px 22px 30px; text-align:center;
+    }
+    .bear{font-size:56px; margin-bottom:8px; user-select:none}
+    h1{font-size:clamp(22px,3.5vw,34px); margin:8px 0 18px; font-weight:900}
+    .sub{opacity:.75; margin:0 0 18px; font-size:15px}
+    .buttons{display:flex; gap:14px; justify-content:center; align-items:center; flex-wrap:wrap; min-height:120px}
+    button{
+      border:0; cursor:pointer; border-radius:14px; padding:18px 26px;
+      font-size:28px; font-weight:900; box-shadow:0 10px 18px rgba(0,0,0,.12);
+      transition:transform .18s ease, filter .18s ease; user-select:none; touch-action:manipulation;
+    }
+    #yesBtn{background:var(--yes); color:#fff; min-width:210px; transform:scale(1)}
+    #noBtn{
+      background:var(--no); color:#fff; font-size:14px; font-weight:800;
+      padding:12px 14px; border-radius:10px; min-width:130px; max-width:260px; line-height:1.15;
+    }
+    .result{
+      display:none; margin-top:14px; padding:18px; border-radius:14px;
+      background:#f3fff6; border:1px solid rgba(41,195,90,.25);
+    }
+    canvas#confetti{
+      position:fixed; inset:0; pointer-events:none; z-index:9999;
+    }
+
+    /* ===== Password overlay ===== */
+    .overlay{
+      position:fixed; inset:0;
+      background:rgba(0,0,0,.55);
+      display:flex; align-items:center; justify-content:center;
+      padding:24px;
+      z-index:10000;
+    }
+    .gate{
+      width:min(420px,100%);
+      background:#fff; border-radius:18px; box-shadow:var(--shadow);
+      padding:20px 18px 16px;
+      text-align:center;
+    }
+    .gate h2{margin:6px 0 8px; font-size:20px}
+    .gate p{margin:0 0 14px; opacity:.75; font-size:14px}
+    .row{
+      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap;
+    }
+    input[type="password"]{
+      width:min(260px, 100%);
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      font-size:16px;
+      outline:none;
+    }
+    .btnSmall{
+      padding:12px 14px; border-radius:12px; font-size:16px; font-weight:800;
+      background:#111; color:#fff; box-shadow:0 8px 14px rgba(0,0,0,.16);
+    }
+    .err{
+      margin-top:10px;
+      font-size:13px;
+      color:#b00020;
+      min-height:18px;
+    }
+    .shake{
+      animation: shake .28s linear 0s 2;
+    }
+    @keyframes shake{
+      0%{transform:translateX(0)}
+      25%{transform:translateX(-8px)}
+      50%{transform:translateX(8px)}
+      75%{transform:translateX(-6px)}
+      100%{transform:translateX(0)}
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <!-- Password gate -->
+  <div id="overlay" class="overlay">
+    <div id="gate" class="gate">
+      <div style="font-size:38px; user-select:none;">🔒💌</div>
+      <h2>Tajný vstup</h2>
+      <p>Zadej kód, ať se stránka odemkne.</p>
+      <div class="row">
+        <input id="pw" type="password" placeholder="Zadej heslo…" autocomplete="off" />
+        <button id="unlock" class="btnSmall" type="button">Odemknout</button>
+      </div>
+      <div id="err" class="err"></div>
+    </div>
+  </div>
+
+  <main class="wrap" aria-live="polite">
+    <div class="bear">🧸💗</div>
+    <h1 id="title">Budeš mou Valentýnkou ? ❤️🥺</h1>
+    <p class="sub" id="sub">💌</p>
+
+    <div class="buttons">
+      <button id="yesBtn" type="button">Ano</button>
+      <button id="noBtn" type="button">Ne</button>
+    </div>
+
+    <div id="result" class="result">
+      <h2>Hurááááá!!! 🥳💘</h2>
+      <p id="resultText">Teď už jsi oficiálně má Valentýnka 🥳🥰🌹🥰😘</p>
+    </div>
+  </main>
+
+<script>
+  /* =========================
+     1) HESLO (uprav si tady)
+     ========================= */
+  const PASSWORD = "0107"; // <-- ZMĚŇ si na svoje (např. "hanulka2026")
+
+  const overlay = document.getElementById("overlay");
+  const gate = document.getElementById("gate");
+  const pw = document.getElementById("pw");
+  const unlock = document.getElementById("unlock");
+  const err = document.getElementById("err");
+
+  function tryUnlock() {
+    if (pw.value === PASSWORD) {
+      overlay.style.display = "none";
+      err.textContent = "";
+    } else {
+      err.textContent = "Špatné heslo 🥺 zkus to ještě jednou prosím 🥺";
+      gate.classList.remove("shake");
+      void gate.offsetWidth; // restart animace
+      gate.classList.add("shake");
+      pw.focus();
+      pw.select?.();
+    }
+  }
+  unlock.addEventListener("click", tryUnlock);
+  pw.addEventListener("keydown", (e) => { if (e.key === "Enter") tryUnlock(); });
+
+  /* =========================
+     2) JMÉNO Z ODKAZU
+     ========================= */
+  const params = new URLSearchParams(location.search);
+  const name = (params.get("name") || "").trim();
+
+  const titleEl = document.getElementById("title");
+  const subEl = document.getElementById("sub");
+  const resultText = document.getElementById("resultText");
+
+  if (name) {
+    titleEl.textContent = `${name}, budeš moje valentýnka?`;
+    subEl.textContent = `Pro: ${name} 💌`;
+    resultText.textContent = `${name}, právě jsi řekla Ano! 🥳💘`;
+  } else {
+    subEl.textContent = `Tip: otevři s ?name=Haňulka`;
+  }
+
+  /* =========================
+     3) TLAČÍTKA (Yes roste)
+     ========================= */
+  const yesBtn = document.getElementById("yesBtn");
+  const noBtn  = document.getElementById("noBtn");
+  const result = document.getElementById("result");
+
+  const noMessages = [
+    "No",
+    "Jsi si jistá? 🥺",
+    "Prosím… 🙏🥺",
+    "Dám ti čokoládu a pořádnou pusu 🥺❤️🍫",
+    "dobře 🥺 ale Ano je lepší 🥺",
+    "Už prsím klikni na Ano ❤️😭"
+  ];
+
+  let noClickCount = 0;
+  let yesScale = 1;
+  const scaleStep = 0.12;
+  const maxScale = 2.3;
+
+  function applyYesScale(){ yesBtn.style.transform = `scale(${yesScale})`; }
+
+  noBtn.addEventListener("click", () => {
+    noClickCount++;
+    noBtn.textContent = noMessages[Math.min(noClickCount, noMessages.length-1)];
+    yesScale = Math.min(maxScale, yesScale + scaleStep);
+    applyYesScale();
+  });
+
+  /* =========================
+     4) KONFETY
+     ========================= */
+  const canvas = document.getElementById("confetti");
+  const ctx = canvas.getContext("2d");
+  let confettiPieces = [], animId = null;
+
+  function resize(){
+    canvas.width  = window.innerWidth * devicePixelRatio;
+    canvas.height = window.innerHeight * devicePixelRatio;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+
+  function makeConfetti(count=200){
+    confettiPieces = Array.from({length:count}, () => ({
+      x: rand(0, window.innerWidth),
+      y: rand(-window.innerHeight, 0),
+      w: rand(6, 14),
+      h: rand(8, 18),
+      vx: rand(-1.4, 1.4),
+      vy: rand(2.2, 5.2),
+      rot: rand(0, Math.PI),
+      vr: rand(-0.12, 0.12),
+      c: `hsl(${Math.floor(rand(0,360))} 90% 55%)`,
+      life: rand(70, 140)
+    }));
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+    confettiPieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.c;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life -= 1;
+    });
+
+    confettiPieces = confettiPieces.filter(p => p.life > 0 && p.y < window.innerHeight + 40);
+
+    if (confettiPieces.length > 0) {
+      animId = requestAnimationFrame(draw);
+    } else {
+      cancelAnimationFrame(animId);
+      animId = null;
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+    }
+  }
+
+  function popConfetti(){
+    makeConfetti(240);
+    if (!animId) draw();
+  }
+
+  yesBtn.addEventListener("click", () => {
+    result.style.display = "block";
+    popConfetti();
+  });
+
+  applyYesScale();
+</script>
+</body>
+</html>
